@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>出海船员管理系统 - 登录</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', sans-serif; background-color: #e9ecef; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
+        .login-container { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 300px; text-align: center; }
+        h2 { color: #343a40; margin-bottom: 20px; }
+        input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ced4da; border-radius: 5px; outline: none; }
+        button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 15px; }
+        button:hover { background-color: #0056b3; }
+    </style>
+</head>
+<body>
+
+<div class="login-container">
+    <h2>🚢 船员系统登录</h2>
+    <input type="text" id="username" placeholder="请输入用户名 (如: admin)">
+    <input type="password" id="password" placeholder="请输入密码">
+    <button onclick="login()">登 录</button>
+</div>
+
+<script>
+    async function login() {
+        const user = document.getElementById('username').value;
+        const pass = document.getElementById('password').value;
+
+        if(!user || !pass) return alert("账号和密码不能为空！");
+
+        try {
+            // 呼叫咱们刚刚写的 Node.js 后端接口
+            const response = await fetch('http://localhost:3000/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: user, password: pass })
+            });
+
+            const data = await response.json();
+
+            if (data.success) {
+                // 根据后端返回的 role 决定跳转
+                if (data.role === 'admin') {
+                    alert('🎉 欢迎管理员：' + data.name);
+                    // window.location.href = 'admin.html'; // 以后建了管理页把这行取消注释
+                } else {
+                    alert('👋 欢迎船员：' + data.name);
+                    // window.location.href = 'user.html'; // 以后建了用户页把这行取消注释
+                }
+            } else {
+                alert('❌ ' + data.message);
+            }
+        } catch (error) {
+            alert('🚨 网络请求失败，请检查后端黑窗口是否启动！');
+        }
+    }
+</script>
+
+</body>
+</html>
