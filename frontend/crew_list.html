@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>船员档案</title>
+    <style>
+        body { font-family: 'Microsoft YaHei', sans-serif; padding: 20px; background-color: #f0f2f5; margin: 0; }
+        .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        button { padding: 8px 16px; background-color: #1890ff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #096dd9; }
+        
+        /* 表格样式 */
+        table { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e8e8e8; }
+        th { background-color: #fafafa; color: #333; font-weight: bold; }
+        tr:hover { background-color: #f5f5f5; }
+        
+        /* 状态标签样式 */
+        .tag-sea { background-color: #e6f7ff; color: #1890ff; padding: 2px 8px; border-radius: 12px; font-size: 12px; border: 1px solid #91d5ff; }
+        .tag-land { background-color: #f6ffed; color: #52c41a; padding: 2px 8px; border-radius: 12px; font-size: 12px; border: 1px solid #b7eb8f; }
+    </style>
+</head>
+<body>
+
+    <div class="header-bar">
+        <h2>👨‍✈️ 船员档案管理</h2>
+        <button onclick="alert('新增船员功能即将上线！')">+ 新增船员</button>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>账号</th>
+                <th>姓名</th>
+                <th>性别</th>
+                <th>电话</th>
+                <th>状态</th>
+                <th>系统角色</th>
+            </tr>
+        </thead>
+        <tbody id="crewTableBody">
+            <tr><td colspan="7" style="text-align: center;">正在加载数据...</td></tr>
+        </tbody>
+    </table>
+
+    <script>
+        // 页面一加载，就去呼叫后端接口要数据
+        window.onload = async function() {
+            try {
+                const response = await fetch('http://localhost:3000/api/crews');
+                const result = await response.json();
+
+                if (result.success) {
+                    renderTable(result.data);
+                } else {
+                    alert('获取数据失败！');
+                }
+            } catch (error) {
+                console.error('网络错误:', error);
+                document.getElementById('crewTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; color: red;">网络请求失败，请检查后端是否运行</td></tr>';
+            }
+        };
+
+        // 把拿到的一筐数据，变成 HTML 表格里的 <tr> 和 <td>
+        function renderTable(data) {
+            const tbody = document.getElementById('crewTableBody');
+            tbody.innerHTML = ''; // 清空“正在加载”的字样
+
+            data.forEach(crew => {
+                // 判断出海状态来决定显示什么颜色的标签
+                const statusTag = crew.is_at_sea === 1 
+                    ? '<span class="tag-sea">出海中</span>' 
+                    : '<span class="tag-land">在岸</span>';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td>${crew.id}</td>
+                    <td>${crew.username}</td>
+                    <td>${crew.name}</td>
+                    <td>${crew.gender}</td>
+                    <td>${crew.phone || '未填写'}</td>
+                    <td>${statusTag}</td>
+                    <td>${crew.role === 'admin' ? '管理员' : '普通船员'}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+    </script>
+</body>
+</html>
