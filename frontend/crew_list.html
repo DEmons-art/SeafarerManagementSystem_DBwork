@@ -4,27 +4,35 @@
     <meta charset="UTF-8">
     <title>船员档案</title>
     <style>
+        /* 原有的表格样式保持不变 */
         body { font-family: 'Microsoft YaHei', sans-serif; padding: 20px; background-color: #f0f2f5; margin: 0; }
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
         button { padding: 8px 16px; background-color: #1890ff; color: white; border: none; border-radius: 4px; cursor: pointer; }
         button:hover { background-color: #096dd9; }
-        
-        /* 表格样式 */
         table { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e8e8e8; }
         th { background-color: #fafafa; color: #333; font-weight: bold; }
         tr:hover { background-color: #f5f5f5; }
-        
-        /* 状态标签样式 */
         .tag-sea { background-color: #e6f7ff; color: #1890ff; padding: 2px 8px; border-radius: 12px; font-size: 12px; border: 1px solid #91d5ff; }
         .tag-land { background-color: #f6ffed; color: #52c41a; padding: 2px 8px; border-radius: 12px; font-size: 12px; border: 1px solid #b7eb8f; }
+
+        /* 👇 新增：悬浮窗(Modal)的样式 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background-color: white; padding: 25px; border-radius: 8px; width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .modal-content h3 { margin-top: 0; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #333; font-size: 14px;}
+        .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .btn-cancel { background-color: #fff; color: #333; border: 1px solid #d9d9d9; }
+        .btn-cancel:hover { background-color: #f5f5f5; }
     </style>
 </head>
 <body>
 
     <div class="header-bar">
         <h2>👨‍✈️ 船员档案管理</h2>
-        <button onclick="alert('新增船员功能即将上线！')">+ 新增船员</button>
+        <button onclick="openModal()">+ 新增船员</button>
     </div>
 
     <table>
@@ -32,6 +40,7 @@
             <tr>
                 <th>ID</th>
                 <th>账号</th>
+                <th>密码</th>
                 <th>姓名</th>
                 <th>性别</th>
                 <th>电话</th>
@@ -40,43 +49,81 @@
             </tr>
         </thead>
         <tbody id="crewTableBody">
-            <tr><td colspan="7" style="text-align: center;">正在加载数据...</td></tr>
+            <tr><td colspan="8" style="text-align: center;">正在加载数据...</td></tr>
         </tbody>
     </table>
 
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <h3>新增入职船员</h3>
+            <form id="addCrewForm">
+                <div class="form-group">
+                    <label>登录账号</label>
+                    <input type="text" id="username" required>
+                </div>
+                <div class="form-group">
+                    <label>初始密码</label>
+                    <input type="text" id="password" required>
+                </div>
+                <div class="form-group">
+                    <label>真实姓名</label>
+                    <input type="text" id="name" required>
+                </div>
+                <div class="form-group">
+                    <label>性别</label>
+                    <select id="gender">
+                        <option value="男">男</option>
+                        <option value="女">女</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>身份证号</label>
+                    <input type="text" id="id_card" required maxlength="18">
+                </div>
+                <div class="form-group">
+                    <label>联系电话</label>
+                    <input type="text" id="phone" required>
+                </div>
+                <div class="form-group">
+                    <label>系统角色</label>
+                    <select id="role">
+                        <option value="user">普通船员</option>
+                        <option value="admin">系统管理员</option>
+                    </select>
+                </div>
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeModal()">取消</button>
+                    <button type="submit">确认保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        // 页面一加载，就去呼叫后端接口要数据
-        window.onload = async function() {
+        // 页面一加载，获取数据
+        window.onload = loadData;
+
+        async function loadData() {
             try {
                 const response = await fetch('http://localhost:3000/api/crews');
                 const result = await response.json();
-
-                if (result.success) {
-                    renderTable(result.data);
-                } else {
-                    alert('获取数据失败！');
-                }
+                if (result.success) renderTable(result.data);
             } catch (error) {
                 console.error('网络错误:', error);
-                document.getElementById('crewTableBody').innerHTML = '<tr><td colspan="7" style="text-align: center; color: red;">网络请求失败，请检查后端是否运行</td></tr>';
             }
-        };
+        }
 
-        // 把拿到的一筐数据，变成 HTML 表格里的 <tr> 和 <td>
+        // 渲染表格的函数保持不变
         function renderTable(data) {
             const tbody = document.getElementById('crewTableBody');
-            tbody.innerHTML = ''; // 清空“正在加载”的字样
-
+            tbody.innerHTML = ''; 
             data.forEach(crew => {
-                // 判断出海状态来决定显示什么颜色的标签
-                const statusTag = crew.is_at_sea === 1 
-                    ? '<span class="tag-sea">出海中</span>' 
-                    : '<span class="tag-land">在岸</span>';
-
+                const statusTag = crew.is_at_sea === 1 ? '<span class="tag-sea">出海中</span>' : '<span class="tag-land">在岸</span>';
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td>${crew.id}</td>
                     <td>${crew.username}</td>
+                    <td style="color: #ff4d4f;">${crew.password}</td>
                     <td>${crew.name}</td>
                     <td>${crew.gender}</td>
                     <td>${crew.phone || '未填写'}</td>
@@ -86,6 +133,53 @@
                 tbody.appendChild(tr);
             });
         }
+
+        // 👇 新增：控制弹窗开关的函数
+        function openModal() {
+            document.getElementById('addModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('addModal').style.display = 'none';
+            document.getElementById('addCrewForm').reset(); // 关闭时清空刚才乱填的内容
+        }
+
+        // 👇 新增：拦截表单提交，用 fetch 发给后端
+        document.getElementById('addCrewForm').addEventListener('submit', async function(e) {
+            e.preventDefault(); // 阻止网页默认的刷新行为
+
+            // 收集输入框里的值
+            const formData = {
+                username: document.getElementById('username').value,
+                password: document.getElementById('password').value,
+                name: document.getElementById('name').value,
+                gender: document.getElementById('gender').value,
+                id_card: document.getElementById('id_card').value,
+                phone: document.getElementById('phone').value,
+                role: document.getElementById('role').value
+            };
+
+            try {
+                // 打包发给 Node.js 后端
+                const response = await fetch('http://localhost:3000/api/crews', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('🎉 船员添加成功！');
+                    closeModal(); // 关掉弹窗
+                    loadData();   // 💡 核心操作：重新加载一次数据，新船员就会瞬间出现在表格里！
+                } else {
+                    alert(result.message); // 显示错误信息（比如账号重复）
+                }
+            } catch (error) {
+                console.error('提交失败:', error);
+                alert('网络错误，提交失败');
+            }
+        });
     </script>
 </body>
 </html>

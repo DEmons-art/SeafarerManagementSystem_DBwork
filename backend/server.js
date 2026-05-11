@@ -54,7 +54,7 @@ app.post('/api/login', (req, res) => {
         
 
     // 写 SQL 语句：去 crew_info 表里查数据，出于安全考虑，一般不把 password 查出来发给前端
-    const sql = 'SELECT id, username, name, gender, id_card, phone, is_at_sea, role FROM crew_info';
+    const sql = 'SELECT id, username, password,name, gender, id_card, phone, is_at_sea, role FROM crew_info';
     
     db.query(sql, (err, results) => {
         if (err) {
@@ -91,6 +91,31 @@ app.post('/api/login', (req, res) => {
 });
 
 });
+
+    // ====== 新增：处理提交上来的船员数据 ======
+app.post('/api/crews', (req, res) => {
+    // 1. 从前端发来的请求体(req.body)里提取填写的表单数据
+    const { username, password, name, gender, id_card, phone, role } = req.body;
+    
+    // 2. 准备 SQL 插入语句 (默认新入职的船员状态为 0-在岸)
+    const sql = `INSERT INTO crew_info (username, password, name, gender, id_card, phone, is_at_sea, role) 
+                 VALUES (?, ?, ?, ?, ?, ?, 0, ?)`;
+                 
+    // 3. 执行写入数据库
+    db.query(sql, [username, password, name, gender, id_card, phone, role], (err, results) => {
+        if (err) {
+            console.error('🚨 新增船员失败:', err);
+            // 💡 网工防坑细节：如果是账号或身份证重复，MySQL会报 ER_DUP_ENTRY 错误
+            if (err.code === 'ER_DUP_ENTRY') {
+                return res.status(400).json({ success: false, message: '添加失败：账号或身份证号已被注册！' });
+            }
+            return res.status(500).json({ success: false, message: '服务器写入失败' });
+        }
+        res.json({ success: true, message: '船员录入成功！' });
+    });
+});
+// ==========================================
+
 // 3. 启动服务器，监听 3000 端口
 app.listen(3000, () => {
     console.log('🚀 后端服务器已启动，正在监听端口 3000');
