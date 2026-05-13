@@ -39,7 +39,8 @@
             const data = await response.json();
 
             if (data.success) {
-               
+                  localStorage.setItem('crewId', data.id); 
+                  localStorage.setItem('crewName', data.name);  
                 if (data.role === 'admin') {
                     alert('🎉 欢迎管理员：' + data.name);
                      window.location.href = 'admin.html';

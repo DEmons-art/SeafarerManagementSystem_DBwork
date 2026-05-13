@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>个人中心 - 出海船员管理系统</title>
+    <style>
+        /* 保持系统UI风格的绝对统一 */
+        body { font-family: 'Microsoft YaHei', sans-serif; padding: 20px; background-color: #f0f2f5; margin: 0; }
+        .container { max-width: 1000px; margin: 0 auto; }
+        .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        
+        /* 信息卡片样式 */
+        .card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 20px; border-top: 4px solid #1890ff; }
+        .card h3 { margin-top: 0; color: #333; border-bottom: 1px solid #f0f0f0; padding-bottom: 10px; }
+        .info-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-top: 15px;}
+        .info-item { font-size: 14px; }
+        .info-label { color: #888; margin-bottom: 5px; font-size: 13px;}
+        .info-value { font-weight: bold; color: #333; font-size: 16px; }
+        
+        /* 表格样式 */
+        table { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 1px 4px rgba(0,0,0,0.08); border-radius: 8px; overflow: hidden;}
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid #e8e8e8; }
+        th { background-color: #fafafa; color: #333; font-weight: bold; }
+        tr:hover { background-color: #f9f9f9; }
+        
+        /* 标签与按钮 */
+        .tag-running { background-color: #e6f7ff; color: #1890ff; padding: 4px 10px; border-radius: 12px; font-size: 12px; border: 1px solid #91d5ff; }
+        .tag-arrived { background-color: #f6ffed; color: #52c41a; padding: 4px 10px; border-radius: 12px; font-size: 12px; border: 1px solid #b7eb8f; }
+        .logout-btn { padding: 8px 16px; background-color: #ff4d4f; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold;}
+        .logout-btn:hover { background-color: #d9363e; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h2>🚢 船员个人中心</h2>
+            <button class="logout-btn" onclick="logout()">退出登录</button>
+        </div>
+
+        <div class="card">
+            <h3>👤 我的基本档案</h3>
+            <div class="info-grid">
+                <div class="info-item">
+                    <div class="info-label">真实姓名</div>
+                    <div class="info-value" id="profileName">加载中...</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">系统登录账号</div>
+                    <div class="info-value" id="profileUsername">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">联系电话</div>
+                    <div class="info-value" id="profilePhone">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">性别</div>
+                    <div class="info-value" id="profileGender">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">身份证号码</div>
+                    <div class="info-value" id="profileIdCard">-</div>
+                </div>
+                <div class="info-item">
+                    <div class="info-label">当前执勤状态</div>
+                    <div class="info-value" id="profileStatus">-</div>
+                </div>
+            </div>
+        </div>
+
+        <h3 style="color: #333; margin-top: 30px;">🌊 我的历史出海记录</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>任务流水号</th>
+                    <th>出发港口</th>
+                    <th>目的港口</th>
+                    <th>出发时间</th>
+                    <th>预计到达时间</th>
+                    <th>航次状态</th>
+                </tr>
+            </thead>
+            <tbody id="myVoyageTableBody">
+                <tr><td colspan="6" style="text-align: center;">正在向服务器拉取记录...</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // ==========================================
+        // 🚨 前端路由守卫 (安全拦截)
+        // ==========================================
+        // 从浏览器本地缓存里拿出刚才登录存下的 ID
+        const myId = localStorage.getItem('crewId');
+        
+        // 如果没找到 ID，说明他是直接输入网址进来的，直接踢回登录页！
+        if (!myId) {
+            alert('🛑 非法访问：您还未登录，请先验证身份！');
+            window.location.href = 'index.html';
+        }
+
+        // 页面一加载就去拉取我的数据
+        window.onload = function() {
+            loadMyProfile();
+            loadMyVoyages();
+        };
+
+        // 获取并渲染【我的基本信息】
+        async function loadMyProfile() {
+            try {
+                // 拼接当前登录人的 ID 去发请求
+                const response = await fetch(`http://localhost:3000/api/my-profile/${myId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    const p = result.data;
+                    document.getElementById('profileName').innerText = p.name;
+                    document.getElementById('profileUsername').innerText = p.username;
+                    document.getElementById('profilePhone').innerText = p.phone || '未填写';
+                    document.getElementById('profileGender').innerText = p.gender;
+                    document.getElementById('profileIdCard').innerText = p.id_card;
+                    
+                    // 状态渲染
+                    const statusHTML = p.is_at_sea === 1 
+                        ? '<span class="tag-running">🚢 出海中</span>' 
+                        : '<span class="tag-arrived">🏝️ 在岸待命</span>';
+                    document.getElementById('profileStatus').innerHTML = statusHTML;
+                }
+            } catch (error) {
+                console.error('获取个人资料失败:', error);
+            }
+        }
+
+        // 获取并渲染【我的航次记录】
+        async function loadMyVoyages() {
+            try {
+                const response = await fetch(`http://localhost:3000/api/my-voyages/${myId}`);
+                const result = await response.json();
+                
+                if (result.success) {
+                    renderTable(result.data);
+                }
+            } catch (error) {
+                console.error('获取航次记录失败:', error);
+            }
+        }
+
+        // 时间格式化工具
+        function formatTime(isoString) {
+            if (!isoString) return '待定';
+            return isoString.substring(0, 16).replace('T', ' ');
+        }
+
+        // 渲染表格
+        function renderTable(data) {
+            const tbody = document.getElementById('myVoyageTableBody');
+            tbody.innerHTML = '';
+            
+            // 如果这个人一次都没出过海
+            if(data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">暂无历史出海记录</td></tr>';
+                return;
+            }
+
+            data.forEach(v => {
+                let statusTag = v.status === '进行中' 
+                    ? '<span class="tag-running">进行中</span>' 
+                    : '<span class="tag-arrived">已抵达</span>';
+
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td># ${v.record_id}</td>
+                    <td>${v.departure_point}</td>
+                    <td>${v.destination_point}</td>
+                    <td>${formatTime(v.departure_time)}</td>
+                    <td>${formatTime(v.expected_arrival_time)}</td>
+                    <td>${statusTag}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+        }
+
+        // 登出功能
+        function logout() {
+            if(confirm('您确定要退出当前账号吗？')) {
+                // 清除留在浏览器里的“身份令牌”
+                localStorage.clear(); 
+                // 强行跳转回登录页面
+                window.location.href = 'index.html'; 
+            }
+        }
+    </script>
+</body>
+</html>
