@@ -115,7 +115,60 @@ app.post('/api/crews', (req, res) => {
     });
 });
 // ==========================================
+    // ====== 新增 1：删除船员 (DELETE请求) ======
+app.delete('/api/crews/:id', (req, res) => {
+    // 从 URL 路径中抓取传过来的船员 ID (就像抓取数据包里的目的端口)
+    const crewId = req.params.id; 
+    
+    const sql = 'DELETE FROM crew_info WHERE id = ?';
+    db.query(sql, [crewId], (err, results) => {
+        if (err) {
+            console.error('删除失败:', err);
+            return res.status(500).json({ success: false, message: '删除失败' });
+        }
+        res.json({ success: true, message: '船员已移出系统！' });
+    });
+});
 
+// ====== 新增 2：一键切换出海状态 (PUT请求) ======
+app.put('/api/crews/:id/status', (req, res) => {
+    const crewId = req.params.id;
+    // 接收前端发来的新状态：0代表在岸，1代表出海
+    const { is_at_sea } = req.body; 
+    
+    const sql = 'UPDATE crew_info SET is_at_sea = ? WHERE id = ?';
+    db.query(sql, [is_at_sea, crewId], (err, results) => {
+        if (err) {
+            console.error('状态更新失败:', err);
+            return res.status(500).json({ success: false, message: '更新状态失败' });
+        }
+        res.json({ success: true, message: '状态更新成功！' });
+    });
+});
+
+    
+    // ====== 新增 3：获取统计数据接口 (GET请求) ======
+app.get('/api/stats', (req, res) => {
+    // 👨‍🏫 SQL新知识点：
+    // COUNT(*) 就像是网工里的 IP 扫描，直接统计表里总共有多少行数据（多少人）。
+    // SUM(is_at_sea) 是把所有人 is_at_sea 的值加起来。因为在岸是 0，出海是 1，加起来的总和正好就是出海的人数！
+    const sql = 'SELECT COUNT(*) AS total_crew, SUM(is_at_sea) AS at_sea_count FROM crew_info';
+    
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error('统计失败:', err);
+            return res.status(500).json({ success: false });
+        }
+        
+        // 把查到的数据打包发给前端
+        const data = {
+            total: results[0].total_crew || 0,
+            at_sea: results[0].at_sea_count || 0
+        };
+        res.json({ success: true, data: data });
+    });
+});
+    
 // 3. 启动服务器，监听 3000 端口
 app.listen(3000, () => {
     console.log('🚀 后端服务器已启动，正在监听端口 3000');
