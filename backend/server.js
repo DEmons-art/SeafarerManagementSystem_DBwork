@@ -168,7 +168,64 @@ app.get('/api/stats', (req, res) => {
         res.json({ success: true, data: data });
     });
 });
+
+
+// ==========================================
+// ====== 🌊 出海航次管理模块接口开始 🌊 ======
+// ==========================================
+
+// 1. 获取所有航次记录 (GET请求)
+app.get('/api/voyages', (req, res) => {
+    // 👨‍🏫 高分预警：这里使用了 SQL 的 JOIN（连表查询）！
+    // 航次表里只有 crew_id (数字)，人看不懂。所以我们像查 ARP 缓存表一样，
+    // 把 voyage_records(航次表) 和 crew_info(船员表) 通过 id 拼接在一起，
+    // 直接把船员的真实姓名 (name) 查出来发给前端！
+    const sql = `
+        SELECT v.*, c.name AS crew_name 
+        FROM voyage_records v
+        JOIN crew_info c ON v.crew_id = c.id
+        ORDER BY v.record_id DESC
+    `;
     
+    db.query(sql, (err, results) => {
+        if (err) {
+            console.error('获取航次列表失败:', err);
+            return res.status(500).json({ success: false, message: '获取数据失败' });
+        }
+        res.json({ success: true, data: results });
+    });
+});
+
+// 2. 分配全新航次 (POST请求)
+app.post('/api/voyages', (req, res) => {
+    // 从前端发来的数据包里提取：要派谁去(crew_id)、出发地、目的地、出发时间、预计到达时间
+    const { crew_id, departure_point, destination_point, departure_time, expected_arrival_time } = req.body;
+    
+    // 插入数据库。注意：新分配的任务，状态默认直接就是 '进行中'
+    const sql = `
+        INSERT INTO voyage_records 
+        (crew_id, departure_point, destination_point, departure_time, expected_arrival_time, status) 
+        VALUES (?, ?, ?, ?, ?, '进行中')
+    `;
+    
+    db.query(sql, [crew_id, departure_point, destination_point, departure_time, expected_arrival_time], (err, results) => {
+        if (err) {
+            console.error('🚨 新增航次写入失败:', err);
+            // 防坑：如果前端传来的 crew_id 在船员表里根本不存在，MySQL的外键约束会报错拦截
+            if (err.code === 'ER_NO_REFERENCED_ROW_2') {
+                return res.status(400).json({ success: false, message: '分配失败：该船员不存在！' });
+            }
+            return res.status(500).json({ success: false, message: '服务器写入失败' });
+        }
+        res.json({ success: true, message: '🚢 航次任务分配成功！' });
+    });
+});
+
+// ==========================================
+// ====== 🌊 出海航次管理模块接口结束 🌊 ======
+
+
+
 // 3. 启动服务器，监听 3000 端口
 app.listen(3000, () => {
     console.log('🚀 后端服务器已启动，正在监听端口 3000');

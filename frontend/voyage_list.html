@@ -4,58 +4,113 @@
     <meta charset="UTF-8">
     <title>出海航次管理</title>
     <style>
+        /* 样式和船员列表保持绝对统一，体现企业级UI规范 */
         body { font-family: 'Microsoft YaHei', sans-serif; padding: 20px; background-color: #f0f2f5; margin: 0; }
         .header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        button { padding: 8px 16px; background-color: #1890ff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background-color: #096dd9; }
         table { width: 100%; border-collapse: collapse; background-color: white; box-shadow: 0 1px 4px rgba(0,0,0,0.08); }
         th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #e8e8e8; }
-        th { background-color: #fafafa; color: #333; }
-        .status-going { color: #faad14; font-weight: bold; }
+        th { background-color: #fafafa; color: #333; font-weight: bold; }
+        tr:hover { background-color: #f5f5f5; }
+        
+        /* 航次状态标签 */
+        .tag-running { background-color: #e6f7ff; color: #1890ff; padding: 2px 8px; border-radius: 12px; font-size: 12px; border: 1px solid #91d5ff; }
+        .tag-arrived { background-color: #f6ffed; color: #52c41a; padding: 2px 8px; border-radius: 12px; font-size: 12px; border: 1px solid #b7eb8f; }
+
+        /* 悬浮窗样式 */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); justify-content: center; align-items: center; }
+        .modal-content { background-color: white; padding: 25px; border-radius: 8px; width: 400px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+        .modal-content h3 { margin-top: 0; margin-bottom: 20px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; color: #333; font-size: 14px;}
+        .form-group input { width: 100%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .btn-cancel { background-color: #fff; color: #333; border: 1px solid #d9d9d9; }
     </style>
 </head>
 <body>
 
     <div class="header-bar">
-        <h2>🌊 出海航次记录</h2>
+        <h2>🌊 出海航次调度台</h2>
+        <button onclick="openModal()">+ 分配新航次</button>
     </div>
 
     <table>
         <thead>
             <tr>
-                <th>记录ID</th>
-                <th>出海船员</th>
-                <th>出发地</th>
-                <th>目的地</th>
+                <th>航次流水号</th>
+                <th>被派船员姓名</th>
+                <th>出发港口</th>
+                <th>目的港口</th>
                 <th>出发时间</th>
                 <th>预计到达时间</th>
                 <th>当前状态</th>
             </tr>
         </thead>
         <tbody id="voyageTableBody">
-            <tr><td colspan="7" style="text-align: center;">加载中...</td></tr>
+            <tr><td colspan="7" style="text-align: center;">正在加载航次数据...</td></tr>
         </tbody>
     </table>
 
+    <div id="addModal" class="modal">
+        <div class="modal-content">
+            <h3>分配出海任务</h3>
+            <form id="addVoyageForm">
+                <div class="form-group">
+                <label>指派船员</label>
+                    <select id="crew_id" required>
+                        <option value="">-- 请选择要派出的船员 --</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>出发港口</label>
+                    <input type="text" id="departure_point" placeholder="例如：上海洋山港" required>
+                </div>
+                <div class="form-group">
+                    <label>目的港口</label>
+                    <input type="text" id="destination_point" placeholder="例如：新加坡港" required>
+                </div>
+                <div class="form-group">
+                    <label>出发时间</label>
+                    <input type="datetime-local" id="departure_time" required>
+                </div>
+                <div class="form-group">
+                    <label>预计到达时间</label>
+                    <input type="datetime-local" id="expected_arrival_time" required>
+                </div>
+                
+                <div class="modal-actions">
+                    <button type="button" class="btn-cancel" onclick="closeModal()">取消</button>
+                    <button type="submit">确认下发任务</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <script>
-        window.onload = async function() {
+        window.onload = function() {
+
+            loadVoyages();
+            loadCrewOptions();
+            
+        }
+
+        // 获取并渲染航次列表
+        async function loadVoyages() {
             try {
                 const response = await fetch('http://localhost:3000/api/voyages');
                 const result = await response.json();
-                if (result.success) {
-                    renderTable(result.data);
-                }
+                if (result.success) renderTable(result.data);
             } catch (error) {
                 console.error('网络错误:', error);
             }
-        };
+        }
 
-        // 👇 这是一个专门用来把丑陋的数据库时间变成漂亮时间的“小工具函数”
-        function formatDate(dateString) {
-            if (!dateString) return '暂无';
-            const date = new Date(dateString);
-            return date.toLocaleString('zh-CN', { 
-                year: 'numeric', month: '2-digit', day: '2-digit', 
-                hour: '2-digit', minute: '2-digit' 
-            });
+        // 格式化时间的小工具：把带 T 和 Z 的机器时间变成人看的格式
+        function formatTime(isoString) {
+            if (!isoString) return '未设置';
+            return isoString.substring(0, 16).replace('T', ' ');
         }
 
         function renderTable(data) {
@@ -63,19 +118,92 @@
             tbody.innerHTML = ''; 
 
             data.forEach(voyage => {
+                // 状态标签UI
+                let statusTag = '';
+                if(voyage.status === '进行中') statusTag = '<span class="tag-running">进行中</span>';
+                else statusTag = '<span class="tag-arrived">已抵达</span>';
+
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
-                    <td>${voyage.record_id}</td>
-                    <td style="color:#1890ff; font-weight:bold;">${voyage.crew_name}</td>
+                    <td># ${voyage.record_id}</td>
+                    <td style="font-weight: bold; color: #1890ff;">${voyage.crew_name}</td>
                     <td>${voyage.departure_point}</td>
                     <td>${voyage.destination_point}</td>
-                    <td>${formatDate(voyage.departure_time)}</td>
-                    <td>${formatDate(voyage.expected_arrival_time)}</td>
-                    <td class="status-going">${voyage.status}</td>
+                    <td>${formatTime(voyage.departure_time)}</td>
+                    <td>${formatTime(voyage.expected_arrival_time)}</td>
+                    <td>${statusTag}</td>
                 `;
                 tbody.appendChild(tr);
             });
         }
+
+        // 弹窗控制逻辑
+        function openModal() { document.getElementById('addModal').style.display = 'flex'; }
+        function closeModal() {
+            document.getElementById('addModal').style.display = 'none';
+            document.getElementById('addVoyageForm').reset();
+        }
+
+        // 提交分配航次的表单
+        document.getElementById('addVoyageForm').addEventListener('submit', async function(e) {
+            e.preventDefault(); 
+            
+            const formData = {
+                crew_id: document.getElementById('crew_id').value,
+                departure_point: document.getElementById('departure_point').value,
+                destination_point: document.getElementById('destination_point').value,
+                departure_time: document.getElementById('departure_time').value,
+                expected_arrival_time: document.getElementById('expected_arrival_time').value
+            };
+
+            try {
+                const response = await fetch('http://localhost:3000/api/voyages', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                const result = await response.json();
+
+                if (result.success) {
+                    alert('🚢 航次任务分配成功！');
+                    closeModal(); 
+                    loadVoyages(); // 重新加载数据
+                } else {
+                    alert(result.message); // 比如填了不存在的船员ID，这里会报警
+                }
+            } catch (error) {
+                console.error('提交失败:', error);
+                alert('网络错误，提交失败');
+            }
+        });
+
+        // 👇 新增：从数据库拉取所有船员，并变成下拉菜单的选项
+        async function loadCrewOptions() {
+            try {
+                // 直接复用我们之前写好的获取船员列表的接口
+                const response = await fetch('http://localhost:3000/api/crews');
+                const result = await response.json();
+                
+                if (result.success) {
+                    const select = document.getElementById('crew_id');
+                    select.innerHTML = '<option value="">-- 请选择要派出的船员 --</option>'; 
+                    
+                    result.data.forEach(crew => {
+                        // 💡 亮点细节：如果船员已经在出海了，可以在名字后面加个提示
+                        const statusStr = crew.is_at_sea === 1 ? ' (正在出海中...)' : ' (在岸待命)';
+                        
+                        const option = document.createElement('option');
+                        option.value = crew.id; // 发给 Node.js 的依然是底层纯数字 ID
+                        option.textContent = `${crew.name} - 账号:${crew.username} ${statusStr}`; // 但管理员看到的是名字和账号
+                        
+                        select.appendChild(option);
+                    });
+                }
+            } catch (error) {
+                console.error('拉取船员名单失败:', error);
+            }
+        }
+
     </script>
 </body>
 </html>
