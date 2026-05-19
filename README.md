@@ -101,7 +101,7 @@ docker compose up --build
 - 使用 `Authorization: Bearer <token>` 调用受保护接口。
 - 当前角色固定为：
   `seafarer`、`manager`、`cert_admin`、`shipowner`、`admin`。
-- 已实现基础角色限制，例如船东不能新增船员，非登录用户不能访问船员列表。
+- 已实现基础角色限制，例如船东不能新增船员，证书/岗位/派遣等核心接口需要登录授权；为兼容旧 HTML 页面，船员列表等少量旧接口允许无 token 访问。
 
 ### 船员档案
 
@@ -182,12 +182,16 @@ cancelled      已取消
 
 ## 与前端同学的交接
 
-当前后端主接口已升级为新版 `/api/auth/login`、`/api/crews`、`/api/jobs` 等接口。原 HTML 页面如果仍调用旧接口，例如 `/api/login`、`/api/voyages`、`/api/my-profile/{id}`，需要二选一：
+当前后端同时提供新版 MVP 接口和旧 HTML 前端兼容接口。旧页面暂时不用大改，可以继续调用：
 
-1. 前端改为调用新版接口。
-2. 后端后续补一层旧接口兼容适配。
+- `POST /api/login`
+- `GET /api/crews`、`POST /api/crews`、`DELETE /api/crews/{id}`
+- `PUT /api/crews/{id}/status`
+- `GET /api/stats`
+- `GET /api/voyages`、`POST /api/voyages`
+- `GET /api/my-profile/{id}`、`GET /api/my-voyages/{id}`
 
-推荐前端对接新版接口。通用响应格式：
+后续如果前端有时间重构，仍建议逐步迁移到新版 token 接口，例如 `/api/auth/login`、`/api/jobs`、`/api/dispatches` 等。新版通用响应格式：
 
 ```json
 {
@@ -295,8 +299,7 @@ Authorization: Bearer <access_token>
 
 ## 当前还未落实的内容
 
-- 前端旧接口兼容层。
-- 派遣列表、派遣详情、海历列表等查询接口。
+- 面向新版前端的派遣列表、派遣详情、海历列表等查询接口。
 - 分页、搜索、筛选。
 - 证书图片/PDF 附件上传。
 - 证书审核流程。
@@ -309,8 +312,8 @@ Authorization: Bearer <access_token>
 
 建议按优先级继续开发：
 
-1. 补充派遣列表、派遣详情、海历列表接口，方便前端展示流程结果。
-2. 明确前端是否改新版接口；如果不改，后端补旧接口兼容适配。
+1. 补充面向新版前端的派遣列表、派遣详情、海历列表接口，方便前端展示流程结果。
+2. 逐步把旧 HTML 页面从兼容接口迁移到新版 token 接口。
 3. 给船员、证书、岗位、派遣列表增加分页、搜索和状态筛选。
 4. 引入 Alembic 管理数据库结构变更。
 5. 增加证书附件上传与审核流程。

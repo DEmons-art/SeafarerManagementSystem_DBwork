@@ -60,7 +60,7 @@ class CrewCreate(BaseModel):
     gender: str = "男"
     id_card: str
     phone: str | None = None
-    position: str
+    position: str = "crew"
 
     @field_validator("username", mode="before")
     @classmethod

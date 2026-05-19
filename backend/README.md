@@ -20,19 +20,23 @@ app/
    ├─ certificates.py
    ├─ jobs.py
    ├─ matching.py
-   └─ dispatches.py
+   ├─ dispatches.py
+   └─ legacy.py           # 旧 HTML 前端兼容接口
 ```
 
 ## 主要接口
 
 ```text
 POST /api/auth/login
+POST /api/login
 
 GET    /api/crews
 POST   /api/crews
 GET    /api/crews/{id}
 PUT    /api/crews/{id}
 DELETE /api/crews/{id}
+PUT    /api/crews/{id}/status
+GET    /api/stats
 
 GET  /api/certificates
 POST /api/certificates
@@ -50,6 +54,11 @@ PUT  /api/dispatches/{id}/confirm
 PUT  /api/dispatches/{id}/onboard
 PUT  /api/dispatches/{id}/offboard
 PUT  /api/dispatches/{id}/cancel
+
+GET  /api/voyages
+POST /api/voyages
+GET  /api/my-profile/{id}
+GET  /api/my-voyages/{id}
 ```
 
 ## 本地启动

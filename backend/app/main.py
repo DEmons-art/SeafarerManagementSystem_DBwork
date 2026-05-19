@@ -6,7 +6,7 @@ from fastapi.responses import JSONResponse
 from . import services
 from .database import create_session_factory
 from .models import Base
-from .routers import auth, certificates, crews, dispatches, jobs, matching
+from .routers import auth, certificates, crews, dispatches, jobs, legacy, matching
 
 
 class UTF8JSONResponse(JSONResponse):
@@ -73,6 +73,7 @@ def create_app(
     app.include_router(matching.router)
     app.include_router(jobs.router)
     app.include_router(dispatches.router)
+    app.include_router(legacy.router)
 
     if seed_demo:
         with SessionLocal() as db:

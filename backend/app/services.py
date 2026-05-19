@@ -105,12 +105,15 @@ def crew_to_dict(crew: Crew) -> dict:
     return {
         "id": crew.id,
         "username": crew.user.username,
+        "password": "******",
         "name": crew.name,
         "gender": crew.gender,
         "id_card": crew.id_card,
         "phone": crew.phone,
         "position": crew.position,
         "status": crew.status,
+        "is_at_sea": 1 if crew.status == "at_sea" else 0,
+        "role": "admin" if crew.user.role == "admin" else "user",
     }
 
 
@@ -156,7 +159,10 @@ def dispatch_to_dict(dispatch: Dispatch) -> dict:
 
 def list_crews(db: Session) -> list[dict]:
     crews = db.scalars(
-        select(Crew).options(joinedload(Crew.user)).order_by(Crew.id)
+        select(Crew)
+        .options(joinedload(Crew.user))
+        .where(Crew.status != "inactive")
+        .order_by(Crew.id)
     ).all()
     return [crew_to_dict(crew) for crew in crews]
 
@@ -203,6 +209,40 @@ def update_crew(db: Session, crew_id: int, payload: CrewUpdate) -> dict:
 def soft_delete_crew(db: Session, crew_id: int) -> dict:
     crew = _get_crew_or_404(db, crew_id)
     crew.status = "inactive"
+    db.commit()
+    db.refresh(crew)
+    return crew_to_dict(crew)
+
+
+def crew_stats(db: Session) -> dict:
+    crews = db.scalars(select(Crew).where(Crew.status != "inactive")).all()
+    return {
+        "total": len(crews),
+        "at_sea": sum(1 for crew in crews if crew.status == "at_sea"),
+    }
+
+
+def set_crew_sea_status(db: Session, crew_id: int, is_at_sea: bool) -> dict:
+    crew = _get_crew_or_404(db, crew_id)
+    if crew.status == "inactive":
+        raise ApiError(400, "Crew is inactive")
+
+    if is_at_sea:
+        crew.status = "at_sea"
+        db.commit()
+        db.refresh(crew)
+        return crew_to_dict(crew)
+
+    active_onboard_dispatch = db.scalar(
+        select(Dispatch)
+        .where(Dispatch.crew_id == crew.id, Dispatch.status == "onboard")
+        .order_by(Dispatch.id.desc())
+    )
+    if active_onboard_dispatch is not None:
+        offboard_dispatch(db, active_onboard_dispatch.id)
+        return get_crew(db, crew_id)
+
+    crew.status = "available"
     db.commit()
     db.refresh(crew)
     return crew_to_dict(crew)

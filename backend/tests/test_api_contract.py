@@ -111,7 +111,7 @@ class MvpApiContractTests(TestCase):
         self.assertFalse(bad_response.json()["success"])
 
     def test_token_and_role_permissions_are_enforced(self):
-        response = self.client.get("/api/crews")
+        response = self.client.get("/api/certificates")
         self.assertEqual(response.status_code, 401)
 
         owner_token = self.login("owner", "owner123")
@@ -128,6 +128,113 @@ class MvpApiContractTests(TestCase):
             },
         )
         self.assertEqual(forbidden.status_code, 403)
+
+    def test_legacy_login_and_crew_list_support_existing_frontend_shape(self):
+        login_response = self.client.post(
+            "/api/login",
+            json={"username": "admin", "password": "admin123"},
+        )
+
+        self.assertEqual(login_response.status_code, 200, login_response.text)
+        login_body = login_response.json()
+        self.assertTrue(login_body["success"])
+        self.assertEqual(login_body["role"], "admin")
+        self.assertIn("token", login_body)
+
+        list_response = self.client.get("/api/crews")
+        self.assertEqual(list_response.status_code, 200, list_response.text)
+        self.assertEqual(list_response.json()["data"], [])
+
+        create_response = self.client.post(
+            "/api/crews",
+            json={
+                "username": "legacy_crew",
+                "password": "123456",
+                "name": "Legacy Crew",
+                "id_card": "110101199001018888",
+                "phone": "13800008888",
+                "role": "user",
+            },
+        )
+        self.assertEqual(create_response.status_code, 200, create_response.text)
+
+        legacy_crew = self.client.get("/api/crews").json()["data"][0]
+        self.assertEqual(legacy_crew["username"], "legacy_crew")
+        self.assertEqual(legacy_crew["role"], "user")
+        self.assertEqual(legacy_crew["password"], "******")
+        self.assertEqual(legacy_crew["is_at_sea"], 0)
+
+    def test_legacy_stats_and_status_update_support_old_admin_page(self):
+        crew = self.client.post(
+            "/api/crews",
+            json={
+                "username": "legacy_status",
+                "password": "123456",
+                "name": "Legacy Status",
+                "id_card": "110101199001017777",
+            },
+        ).json()["data"]
+
+        stats_response = self.client.get("/api/stats")
+        self.assertEqual(stats_response.status_code, 200, stats_response.text)
+        self.assertEqual(stats_response.json()["data"], {"total": 1, "at_sea": 0})
+
+        at_sea_response = self.client.put(
+            f"/api/crews/{crew['id']}/status",
+            json={"is_at_sea": 1},
+        )
+        self.assertEqual(at_sea_response.status_code, 200, at_sea_response.text)
+        self.assertEqual(at_sea_response.json()["data"]["is_at_sea"], 1)
+        self.assertEqual(self.client.get("/api/stats").json()["data"]["at_sea"], 1)
+
+        available_response = self.client.put(
+            f"/api/crews/{crew['id']}/status",
+            json={"is_at_sea": 0},
+        )
+        self.assertEqual(available_response.status_code, 200, available_response.text)
+        self.assertEqual(available_response.json()["data"]["is_at_sea"], 0)
+
+    def test_legacy_voyage_assignment_and_personal_views(self):
+        crew = self.client.post(
+            "/api/crews",
+            json={
+                "username": "legacy_voyage",
+                "password": "123456",
+                "name": "Legacy Voyage",
+                "id_card": "110101199001016666",
+                "position": "AB",
+            },
+        ).json()["data"]
+
+        assign_response = self.client.post(
+            "/api/voyages",
+            json={
+                "crew_id": crew["id"],
+                "departure_point": "Shanghai",
+                "destination_point": "Singapore",
+                "departure_time": "2026-06-01T08:00:00",
+                "expected_arrival_time": "2026-06-10T08:00:00",
+            },
+        )
+        self.assertEqual(assign_response.status_code, 200, assign_response.text)
+
+        voyage_response = self.client.get("/api/voyages")
+        self.assertEqual(voyage_response.status_code, 200, voyage_response.text)
+        voyages = voyage_response.json()["data"]
+        self.assertEqual(len(voyages), 1)
+        self.assertEqual(voyages[0]["crew_id"], crew["id"])
+        self.assertEqual(voyages[0]["crew_name"], "Legacy Voyage")
+        self.assertEqual(voyages[0]["departure_point"], "Shanghai")
+        self.assertEqual(voyages[0]["destination_point"], "Singapore")
+        self.assertEqual(voyages[0]["status"], "\u8fdb\u884c\u4e2d")
+
+        profile_response = self.client.get(f"/api/my-profile/{crew['id']}")
+        self.assertEqual(profile_response.status_code, 200, profile_response.text)
+        self.assertEqual(profile_response.json()["data"]["is_at_sea"], 1)
+
+        my_voyages_response = self.client.get(f"/api/my-voyages/{crew['id']}")
+        self.assertEqual(my_voyages_response.status_code, 200, my_voyages_response.text)
+        self.assertEqual(len(my_voyages_response.json()["data"]), 1)
 
     def test_crew_crud_uses_soft_delete(self):
         manager_token = self.login()
