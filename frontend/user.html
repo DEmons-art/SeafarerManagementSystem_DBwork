@@ -162,10 +162,15 @@
             }
 
             data.forEach(v => {
-                let statusTag = v.status === '进行中' 
-                    ? '<span class="tag-running">进行中</span>' 
-                    : '<span class="tag-arrived">已抵达</span>';
-
+              let statusTag = '';
+                if(v.status === '进行中') {
+                    statusTag = '<span class="tag-running">进行中</span>';
+                } else if (v.status === '召回中') {
+                    statusTag = '<span style="background-color: #fff7e6; color: #fa8c16; padding: 4px 10px; border-radius: 12px; font-size: 12px; border: 1px solid #ffd591;">召回中</span>';
+                } else {
+                    statusTag = '<span class="tag-arrived">已抵达</span>';
+                }
+                
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
                     <td># ${v.record_id}</td>

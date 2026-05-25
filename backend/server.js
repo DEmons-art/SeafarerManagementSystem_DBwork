@@ -6,6 +6,12 @@ const app = express();
 app.use(cors()); // 允许前端跨域访问
 app.use(express.json()); // 解析前端传来的 JSON 数据
 
+app.use((req, res, next) => {
+    res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+    next();
+});//禁止浏览器缓存，确保每次请求都是最新数据
+
+
 // 1. 连接 MySQL 数据库
 const db = mysql.createConnection({
     host: '127.0.0.1',
@@ -79,12 +85,27 @@ app.delete('/api/crews/:id', (req, res) => {
     });
 });
 
-// 切换出海状态
+
+// 切换出海状态 
+
 app.put('/api/crews/:id/status', (req, res) => {
-    const sql = 'UPDATE crew_info SET is_at_sea = ? WHERE id = ?';
-    db.query(sql, [req.body.is_at_sea, req.params.id], (err, results) => {
+    const newStatus = req.body.is_at_sea; 
+    const crewId = req.params.id;
+
+    const sql1 = 'UPDATE crew_info SET is_at_sea = ? WHERE id = ?';
+    db.query(sql1, [newStatus, crewId], (err, results) => {
         if (err) return res.status(500).json({ success: false, message: '更新失败' });
-        res.json({ success: true, message: '状态更新成功！' });
+        
+        if (newStatus === 0) {
+            // 💡 这里严格使用你数据库里配置的 '已取消'
+            const sql2 = `UPDATE voyage_records SET status = '已取消' WHERE crew_id = ? AND status = '进行中'`;
+            db.query(sql2, [crewId], (err2) => {
+                if (err2) console.error('联动更新航次表失败:', err2);
+                res.json({ success: true, message: '已召回，航次已同步取消！' });
+            });
+        } else {
+            res.json({ success: true, message: '状态更新成功！' });
+        }
     });
 });
 
@@ -115,12 +136,23 @@ app.get('/api/voyages', (req, res) => {
 });
 
 // 分配新航次
+// 分配新航次 (终极双向联动版！)
 app.post('/api/voyages', (req, res) => {
     const { crew_id, departure_point, destination_point, departure_time, expected_arrival_time } = req.body;
+    
+    // 1. 先把航次任务写进航次表
     const sql = `INSERT INTO voyage_records (crew_id, departure_point, destination_point, departure_time, expected_arrival_time, status) VALUES (?, ?, ?, ?, ?, '进行中')`;
+    
     db.query(sql, [crew_id, departure_point, destination_point, departure_time, expected_arrival_time], (err, results) => {
         if (err) return res.status(500).json({ success: false, message: '分配失败' });
-        res.json({ success: true, message: '航次任务分配成功！' });
+
+        // 2. 💡 联动操作：分配完任务后，自动把该船员的物理状态改成“出海中”(1)
+        const sqlUpdateCrew = 'UPDATE crew_info SET is_at_sea = 1 WHERE id = ?';
+        db.query(sqlUpdateCrew, [crew_id], (err2) => {
+            if(err2) console.error('同步更新船员状态失败', err2);
+            // 搞定！返回成功
+            res.json({ success: true, message: '🚢 航次分配成功，船员状态已自动切换为出海中！' });
+        });
     });
 });
 
