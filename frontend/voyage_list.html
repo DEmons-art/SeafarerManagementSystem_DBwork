@@ -117,16 +117,11 @@
             const tbody = document.getElementById('voyageTableBody');
             tbody.innerHTML = ''; 
 
-       data.forEach(voyage => {
+            data.forEach(voyage => {
+                // 状态标签UI
                 let statusTag = '';
-                if(voyage.status === '进行中') {
-                    statusTag = '<span class="tag-running">进行中</span>';
-                } else if (voyage.status === '已取消') {
-                    // 💡 新增：渲染联动取消的橙红色警示标签
-                    statusTag = '<span style="background-color: #fff1f0; color: #f5222d; padding: 2px 8px; border-radius: 12px; font-size: 12px; border: 1px solid #ffa39e;">已被召回/取消</span>';
-                } else {
-                    statusTag = '<span class="tag-arrived">已抵达</span>';
-                }
+                if(voyage.status === '进行中') statusTag = '<span class="tag-running">进行中</span>';
+                else statusTag = '<span class="tag-arrived">已抵达</span>';
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
