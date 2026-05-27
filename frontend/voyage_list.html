@@ -89,6 +89,8 @@
     </div>
 
     <script>
+        const selectedCrewId = new URLSearchParams(window.location.search).get('crew_id');
+
         window.onload = function() {
 
             loadVoyages();
@@ -198,6 +200,11 @@
                         
                         select.appendChild(option);
                     });
+
+                    if (selectedCrewId && select.querySelector(`option[value="${selectedCrewId}"]`)) {
+                        select.value = selectedCrewId;
+                        openModal();
+                    }
                 }
             } catch (error) {
                 console.error('拉取船员名单失败:', error);
