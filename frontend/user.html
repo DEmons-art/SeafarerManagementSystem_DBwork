@@ -86,25 +86,22 @@
     </div>
 
     <script>
-        // ==========================================
-        // 🚨 前端路由守卫 (安全拦截)
-        // ==========================================
-        // 从浏览器本地缓存里拿出刚才登录存下的 ID
+        // 从浏览器本地缓存里拿出登录存下的 ID
         const myId = localStorage.getItem('crewId');
         
-        // 如果没找到 ID，说明他是直接输入网址进来的，直接踢回登录页！
+        // 没找到 ID，踢打回登录页
         if (!myId) {
-            alert('🛑 非法访问：您还未登录，请先验证身份！');
+            alert('请先登录');
             window.location.href = 'index.html';
         }
 
-        // 页面一加载就去拉取我的数据
+        // 页面一加载就去拉取数据
         window.onload = function() {
             loadMyProfile();
             loadMyVoyages();
         };
 
-        // 获取并渲染【我的基本信息】
+        // 获取并渲染基本信息
         async function loadMyProfile() {
             try {
                 // 拼接当前登录人的 ID 去发请求
@@ -130,7 +127,7 @@
             }
         }
 
-        // 获取并渲染【我的航次记录】
+        // 获取并渲染航次记录
         async function loadMyVoyages() {
             try {
                 const response = await fetch(`http://localhost:3000/api/my-voyages/${myId}`);
@@ -144,7 +141,7 @@
             }
         }
 
-        // 时间格式化工具
+        // 时间格式化
         function formatTime(isoString) {
             if (!isoString) return '待定';
             return isoString.substring(0, 16).replace('T', ' ');
@@ -155,7 +152,6 @@
             const tbody = document.getElementById('myVoyageTableBody');
             tbody.innerHTML = '';
             
-            // 如果这个人一次都没出过海
             if(data.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: #888;">暂无历史出海记录</td></tr>';
                 return;
@@ -179,12 +175,9 @@
             });
         }
 
-        // 登出功能
         function logout() {
-            if(confirm('您确定要退出当前账号吗？')) {
-                // 清除留在浏览器里的“身份令牌”
+            if(confirm('确定退出当前账号')) {
                 localStorage.clear(); 
-                // 强行跳转回登录页面
                 window.location.href = 'index.html'; 
             }
         }

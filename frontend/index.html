@@ -6,7 +6,7 @@
     <style>
         body { font-family: 'Microsoft YaHei', sans-serif; background-color: #e9ecef; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
         .login-container { background: white; padding: 40px; border-radius: 10px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 300px; text-align: center; }
-        h2 { color: #343a40; margin-bottom: 20px; }
+        h2 { color: #343a40; margin-bottom: 20px; } 
         input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ced4da; border-radius: 5px; outline: none; }
         button { width: 100%; padding: 10px; background-color: #007bff; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; margin-top: 15px; }
         button:hover { background-color: #0056b3; }
@@ -15,7 +15,7 @@
 <body>
 
 <div class="login-container">
-    <h2>🚢 船员系统登录</h2>
+    <h2>船员系统登录</h2>
     <input type="text" id="username" placeholder="请输入用户名 (如: admin)">
     <input type="password" id="password" placeholder="请输入密码">
     <button onclick="login()">登 录</button>
@@ -42,17 +42,17 @@
                   localStorage.setItem('crewId', data.id); 
                   localStorage.setItem('crewName', data.name);  
                 if (data.role === 'admin') {
-                    alert('🎉 欢迎管理员：' + data.name);
+                    alert('欢迎管理员：' + data.name);
                      window.location.href = 'admin.html';
                 } else {
-                    alert('👋 欢迎船员：' + data.name);
+                    alert('欢迎船员：' + data.name);
                      window.location.href = 'user.html';
                 }
             } else {
-                alert('❌ ' + data.message);
+                alert('错误 ' + data.message);
             }
         } catch (error) {
-            alert('🚨 网络请求失败，请检查后端黑窗口是否启动！');
+            alert(' 网络请求失败');
         }
     }
 </script>
